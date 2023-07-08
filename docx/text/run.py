@@ -94,6 +94,30 @@ class Run(Parented):
         comment = self._r.add_comm(author, comment_part, initials, dtime, text)
 
         return comment
+    
+    def suggest_edit(self, text, author='python-docx', dtime=None):
+        
+        if dtime is None:
+            dtime = str(datetime.now()).replace(' ', 'T')
+        insert = self._r.sugg_insert(author, dtime, text)
+        delete = self._r.sugg_delete(author, dtime)
+        self.element.getparent().remove(self.element)
+
+    def suggest_insert(self, text, author='python-docx', dtime=None):
+        if dtime is None:
+            dtime = str(datetime.now()).replace(' ', 'T')
+        insert = self._r.sugg_insert(author, dtime, text)
+        
+        return insert
+    
+    def suggest_delete(self, author='python-docx', dtime=None):
+        if dtime is None:
+            dtime = str(datetime.now()).replace(' ', 'T')
+        delete = self._r.sugg_delete(author, dtime)
+        
+        return delete
+
+
 
     @property
     def bold(self):

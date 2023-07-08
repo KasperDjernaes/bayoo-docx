@@ -11,9 +11,9 @@ from .. import OxmlElement
 from ..xmlchemy import (
     BaseOxmlElement, OptionalAttribute, ZeroOrMore, ZeroOrOne, RequiredAttribute
 )
-
+from ...text.run import Run
 from .. import OxmlElement
-
+from ..tracked_changes import CT_Del, CT_Ins
 
 class CT_Br(BaseOxmlElement):
     """
@@ -31,6 +31,7 @@ class CT_R(BaseOxmlElement):
     # wrong
     ref = ZeroOrOne('w:commentRangeStart', successors=('w:r',))
     t = ZeroOrMore('w:t')
+    deltext = ZeroOrMore('w:delText')
     br = ZeroOrMore('w:br')
     cr = ZeroOrMore('w:cr')
     tab = ZeroOrMore('w:tab')
@@ -67,6 +68,23 @@ class CT_R(BaseOxmlElement):
         self.link_comment(comment._id)
 
         return comment
+    
+    def sugg_insert(self, author, dtime, text):
+        insert = CT_Ins.new(self._next_insId, dtime, author)
+        _r = insert._add_r(text)
+        #run = Run(_r,self)
+        _r.text = text
+        self.addnext(insert)
+        return insert
+
+    def sugg_delete(self, author, dtime):
+        delete = CT_Del.new(self._next_insId, dtime, author)
+        _r = delete._add_r(self.text)
+        self.addprevious(delete)
+        return delete
+
+    def sugg_edit(self, author, dtime, text):
+        pass
 
     def link_comment(self, _id):
         rStart = OxmlElement('w:commentRangeStart')
@@ -113,6 +131,23 @@ class CT_R(BaseOxmlElement):
         else:
             return int(_id[0])
 
+
+    @property
+    def _next_insId(self):
+        """
+        The first ``insId`` unused by a ``<w:ins>`` element, starting at
+        1 and filling any gaps in numbering between existing ``<w:ins>``
+        elements.
+        """
+        body = list(self.iterancestors("{*}body"))[0]
+        insId_strs = body.xpath('*/w:ins/@w:id')
+        ins_ids = [int(insId_str) for insId_str in insId_strs]
+        for ins in range(1, len(ins_ids)+2):
+            if ins not in ins_ids:
+                break
+        return ins
+
+
     def clear_content(self):
         """
         Remove all child elements except the ``<w:rPr>`` element if present.
@@ -157,6 +192,9 @@ class CT_R(BaseOxmlElement):
         text = ''
         for child in self:
             if child.tag == qn('w:t'):
+                t_text = child.text
+                text += t_text if t_text is not None else ''
+            elif child.tag == qn('w:delText'):
                 t_text = child.text
                 text += t_text if t_text is not None else ''
             elif child.tag == qn('w:tab'):
